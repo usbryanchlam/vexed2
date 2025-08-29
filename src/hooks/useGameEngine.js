@@ -1,11 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
 
+// Constants
+export const AUTO_PROGRESS_SECONDS = 5;
+
 export const useGameEngine = () => {
   const [board, setBoard] = useState([]);
   const [currentLevel, setCurrentLevel] = useState(1);
   const [movableBlockCount, setMovableBlockCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [gameStatus, setGameStatus] = useState("playing"); // 'playing', 'completed'
+  const [animating, setAnimating] = useState(false); // Prevent input during animations
+  const [showVictoryOverlay, setShowVictoryOverlay] = useState(false);
+  const [autoProgressTimer, setAutoProgressTimer] = useState(AUTO_PROGRESS_SECONDS);
 
   // Check for adjacent matching blocks and eliminate them
   const eliminateBlocks = useCallback((currentBoard) => {
@@ -85,7 +91,7 @@ export const useGameEngine = () => {
     return { newBoard, eliminatedCount };
   }, []);
 
-  // Apply gravity to make unsupported blocks fall
+  // Apply gravity to make blocks fall one step at a time
   const applyGravity = useCallback((currentBoard) => {
     const newBoard = currentBoard.map((row) => [...row]);
     let hasChanges = false;
@@ -98,23 +104,14 @@ export const useGameEngine = () => {
 
         // If there's a movable block (types 1-8) that's not supported
         if (cell.type >= 1 && cell.type <= 8) {
-          // Find the lowest position it can fall to
-          let targetRow = row;
+          // Check if the block can fall one row down
+          const nextRow = row + 1;
 
-          for (let checkRow = row + 1; checkRow < 8; checkRow++) {
-            if (newBoard[checkRow][col].type === 0) {
-              targetRow = checkRow;
-            } else {
-              break; // Hit a block, can't fall further
-            }
-          }
-
-          // If the block can fall
-          if (targetRow > row) {
-            // Move the block down
-            newBoard[targetRow][col] = {
+          if (nextRow < 8 && newBoard[nextRow][col].type === 0) {
+            // Move the block down by one row only
+            newBoard[nextRow][col] = {
               ...cell,
-              id: `${targetRow}-${col}`,
+              id: `${nextRow}-${col}`,
             };
 
             // Clear the original position
@@ -132,151 +129,222 @@ export const useGameEngine = () => {
     return { newBoard, hasChanges };
   }, []);
 
-  // Load level data from text file
-  const loadLevel = useCallback(async (levelNumber) => {
-    try {
-      setLoading(true);
-      setGameStatus("playing");
-      const response = await fetch(`/assets/level.${levelNumber}`);
-      const levelData = await response.text();
+  // Apply gravity with step-by-step animation
+  const applyGravityWithAnimation = useCallback(
+    async (currentBoard) => {
+      let workingBoard = currentBoard;
+      let hasMoreFalling = true;
 
-      // Parse level data into board
-      const lines = levelData.trim().split("\n");
-      const newBoard = [];
-      let movableCount = 0;
+      setAnimating(true);
 
-      for (let row = 0; row < 8; row++) {
-        const boardRow = [];
-        const line = lines[row] || "0000000000"; // fallback for missing rows
+      try {
+        while (hasMoreFalling) {
+          const gravityResult = applyGravity(workingBoard);
+          workingBoard = gravityResult.newBoard;
 
-        for (let col = 0; col < 10; col++) {
-          const type = parseInt(line[col] || "0");
-          boardRow.push({
-            type: type,
-            id: `${row}-${col}`,
-          });
-
-          // Count movable blocks (types 1-8)
-          if (type >= 1 && type <= 8) {
-            movableCount++;
+          if (gravityResult.hasChanges) {
+            // Update the board state and wait for animation
+            setBoard(workingBoard);
+            await new Promise((resolve) => setTimeout(resolve, 400)); // Wait for CSS transition
+          } else {
+            hasMoreFalling = false;
           }
         }
-        newBoard.push(boardRow);
+      } catch (error) {
+        console.error("Error in gravity animation:", error);
+      } finally {
+        setAnimating(false);
       }
 
-      // Apply elimination and gravity after loading level
-      let finalBoard = newBoard;
+      return workingBoard;
+    },
+    [applyGravity]
+  );
+
+  // Load level data from text file
+  const loadLevel = useCallback(
+    async (levelNumber) => {
+      try {
+        setLoading(true);
+        setGameStatus("playing");
+        setShowVictoryOverlay(false);
+        setAutoProgressTimer(AUTO_PROGRESS_SECONDS);
+        const response = await fetch(`/assets/level.${levelNumber}`);
+        const levelData = await response.text();
+
+        // Parse level data into board
+        const lines = levelData.trim().split("\n");
+        const newBoard = [];
+        let movableCount = 0;
+
+        for (let row = 0; row < 8; row++) {
+          const boardRow = [];
+          const line = lines[row] || "0000000000"; // fallback for missing rows
+
+          for (let col = 0; col < 10; col++) {
+            const type = parseInt(line[col] || "0");
+            boardRow.push({
+              type: type,
+              id: `${row}-${col}`,
+            });
+
+            // Count movable blocks (types 1-8)
+            if (type >= 1 && type <= 8) {
+              movableCount++;
+            }
+          }
+          newBoard.push(boardRow);
+        }
+
+        // Apply elimination and gravity after loading level
+        let finalBoard = newBoard;
+        let totalEliminated = 0;
+        let hasPhysicsChanges = true;
+
+        while (hasPhysicsChanges) {
+          hasPhysicsChanges = false;
+
+          // Apply elimination first
+          const eliminationResult = eliminateBlocks(finalBoard);
+          finalBoard = eliminationResult.newBoard;
+
+          if (eliminationResult.eliminatedCount > 0) {
+            totalEliminated += eliminationResult.eliminatedCount;
+            console.log(
+              `${eliminationResult.eliminatedCount} blocks eliminated on level load`
+            );
+            hasPhysicsChanges = true;
+          }
+
+          // Then apply gravity
+          let gravityResult;
+          do {
+            gravityResult = applyGravity(finalBoard);
+            finalBoard = gravityResult.newBoard;
+            if (gravityResult.hasChanges) {
+              console.log("Gravity applied on level load");
+              hasPhysicsChanges = true;
+            }
+          } while (gravityResult.hasChanges);
+        }
+
+        setBoard(finalBoard);
+        setMovableBlockCount(movableCount - totalEliminated);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error loading level:", error);
+        setLoading(false);
+      }
+    },
+    [eliminateBlocks, applyGravity]
+  );
+
+  // Handle block movement
+  const handleBlockMove = useCallback(
+    async (fromRow, fromCol, toRow, toCol) => {
+      // Prevent moves during animations
+      if (animating) {
+        console.log("Cannot move during animation");
+        return false;
+      }
+
+      // Check if the target position is empty
+      if (board[toRow][toCol].type !== 0) {
+        console.log("Target position is not empty");
+        return false;
+      }
+
+      console.log(
+        `Moving block from (${fromRow}, ${fromCol}) to (${toRow}, ${toCol})`
+      );
+
+      // Create new board with the moved block
+      let newBoard = board.map((row) => [...row]);
+      const movingBlock = newBoard[fromRow][fromCol];
+
+      // Move the block
+      newBoard[toRow][toCol] = {
+        ...movingBlock,
+        id: `${toRow}-${toCol}`,
+      };
+
+      // Clear the original position
+      newBoard[fromRow][fromCol] = {
+        type: 0,
+        id: `${fromRow}-${fromCol}`,
+      };
+
+      // First update board with the horizontal move
+      setBoard(newBoard);
+
+      // Wait for horizontal animation to be visible before starting gravity
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Apply animated gravity and elimination in a loop until stable
       let totalEliminated = 0;
       let hasPhysicsChanges = true;
 
       while (hasPhysicsChanges) {
         hasPhysicsChanges = false;
 
-        // Apply elimination first
-        const eliminationResult = eliminateBlocks(finalBoard);
-        finalBoard = eliminationResult.newBoard;
+        // Apply animated gravity first
+        newBoard = await applyGravityWithAnimation(newBoard);
+
+        // Then check for block elimination
+        const eliminationResult = eliminateBlocks(newBoard);
+        newBoard = eliminationResult.newBoard;
 
         if (eliminationResult.eliminatedCount > 0) {
           totalEliminated += eliminationResult.eliminatedCount;
-          console.log(
-            `${eliminationResult.eliminatedCount} blocks eliminated on level load`
-          );
+          console.log(`${eliminationResult.eliminatedCount} blocks eliminated`);
+          setBoard(newBoard);
           hasPhysicsChanges = true;
+          // Brief pause to show elimination
+          await new Promise((resolve) => setTimeout(resolve, 200));
         }
+      }
 
-        // Then apply gravity
-        let gravityResult;
-        do {
-          gravityResult = applyGravity(finalBoard);
-          finalBoard = gravityResult.newBoard;
-          if (gravityResult.hasChanges) {
-            console.log("Gravity applied on level load");
-            hasPhysicsChanges = true;
+      // Update movable block count and check for victory
+      const newMovableCount = movableBlockCount - totalEliminated;
+      if (totalEliminated > 0) {
+        setMovableBlockCount(newMovableCount);
+      }
+
+      // Check for victory condition
+      if (newMovableCount === 0) {
+        setGameStatus("completed");
+        setShowVictoryOverlay(true);
+        setAutoProgressTimer(AUTO_PROGRESS_SECONDS);
+        console.log("🎉 Level completed!");
+
+        // Start auto-progress timer
+        let timeLeft = AUTO_PROGRESS_SECONDS;
+        const timer = setInterval(() => {
+          timeLeft--;
+          setAutoProgressTimer(timeLeft);
+
+          if (timeLeft <= 0) {
+            clearInterval(timer);
+            setShowVictoryOverlay(false);
+            setAutoProgressTimer(AUTO_PROGRESS_SECONDS);
+            if (currentLevel < 59) {
+              setCurrentLevel(currentLevel + 1);
+            }
           }
-        } while (gravityResult.hasChanges);
+        }, 1000);
       }
 
-      setBoard(finalBoard);
-      setMovableBlockCount(movableCount - totalEliminated);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error loading level:", error);
-      setLoading(false);
-    }
-  }, [eliminateBlocks, applyGravity]);
-
-  // Handle block movement
-  const handleBlockMove = useCallback((fromRow, fromCol, toRow, toCol) => {
-    // Check if the target position is empty
-    if (board[toRow][toCol].type !== 0) {
-      console.log("Target position is not empty");
-      return false;
-    }
-
-    console.log(
-      `Moving block from (${fromRow}, ${fromCol}) to (${toRow}, ${toCol})`
-    );
-
-    // Create new board with the moved block
-    let newBoard = board.map((row) => [...row]);
-    const movingBlock = newBoard[fromRow][fromCol];
-
-    // Move the block
-    newBoard[toRow][toCol] = {
-      ...movingBlock,
-      id: `${toRow}-${toCol}`,
-    };
-
-    // Clear the original position
-    newBoard[fromRow][fromCol] = {
-      type: 0,
-      id: `${fromRow}-${fromCol}`,
-    };
-
-    // Apply physics: gravity and elimination in a loop until stable
-    let totalEliminated = 0;
-    let hasPhysicsChanges = true;
-
-    while (hasPhysicsChanges) {
-      hasPhysicsChanges = false;
-
-      // Apply gravity first
-      let gravityResult;
-      do {
-        gravityResult = applyGravity(newBoard);
-        newBoard = gravityResult.newBoard;
-        if (gravityResult.hasChanges) {
-          console.log("Gravity applied");
-          hasPhysicsChanges = true;
-        }
-      } while (gravityResult.hasChanges);
-
-      // Then check for block elimination
-      const eliminationResult = eliminateBlocks(newBoard);
-      newBoard = eliminationResult.newBoard;
-
-      if (eliminationResult.eliminatedCount > 0) {
-        totalEliminated += eliminationResult.eliminatedCount;
-        console.log(`${eliminationResult.eliminatedCount} blocks eliminated`);
-        hasPhysicsChanges = true;
-      }
-    }
-
-    // Update movable block count and check for victory
-    const newMovableCount = movableBlockCount - totalEliminated;
-    if (totalEliminated > 0) {
-      setMovableBlockCount(newMovableCount);
-    }
-
-    // Check for victory condition
-    if (newMovableCount === 0) {
-      setGameStatus("completed");
-      console.log("🎉 Level completed!");
-    }
-
-    setBoard(newBoard);
-    return true;
-  }, [board, movableBlockCount, applyGravity, eliminateBlocks]);
+      return true;
+    },
+    [
+      board,
+      movableBlockCount,
+      applyGravityWithAnimation,
+      eliminateBlocks,
+      animating,
+      currentLevel,
+    ]
+  );
 
   // Load initial level
   useEffect(() => {
@@ -293,6 +361,14 @@ export const useGameEngine = () => {
     }
   }, [currentLevel]);
 
+  const handleCloseVictoryOverlay = useCallback(() => {
+    setShowVictoryOverlay(false);
+    setAutoProgressTimer(AUTO_PROGRESS_SECONDS);
+    if (currentLevel < 59) {
+      setCurrentLevel(currentLevel + 1);
+    }
+  }, [currentLevel]);
+
   return {
     // State
     board,
@@ -300,10 +376,14 @@ export const useGameEngine = () => {
     movableBlockCount,
     loading,
     gameStatus,
-    
+    animating,
+    showVictoryOverlay,
+    autoProgressTimer,
+
     // Actions
     handleBlockMove,
     handleRestart,
     handleNextLevel,
+    handleCloseVictoryOverlay,
   };
 };

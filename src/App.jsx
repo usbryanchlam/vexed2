@@ -1,7 +1,8 @@
-import { useGameEngine } from "./hooks/useGameEngine";
+import { useGameEngine, AUTO_PROGRESS_SECONDS } from "./hooks/useGameEngine";
 import ControlPanel from "./components/ControlPanel";
 import GameBoard from "./components/GameBoard";
 import LoadingScreen from "./components/LoadingScreen";
+import VictoryOverlay from "./components/VictoryOverlay";
 import "./App.css";
 
 function App() {
@@ -11,9 +12,12 @@ function App() {
     movableBlockCount,
     loading,
     gameStatus,
+    showVictoryOverlay,
+    autoProgressTimer,
     handleBlockMove,
     handleRestart,
     handleNextLevel,
+    handleCloseVictoryOverlay,
   } = useGameEngine();
 
   if (loading) {
@@ -36,6 +40,15 @@ function App() {
           onRestart={handleRestart}
           onNextLevel={handleNextLevel}
         />
+        
+        {showVictoryOverlay && (
+          <VictoryOverlay
+            currentLevel={currentLevel}
+            autoProgressTimer={autoProgressTimer}
+            totalDuration={AUTO_PROGRESS_SECONDS}
+            onClose={handleCloseVictoryOverlay}
+          />
+        )}
       </div>
     </div>
   );

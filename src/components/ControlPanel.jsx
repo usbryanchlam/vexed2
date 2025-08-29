@@ -42,12 +42,6 @@ function ControlPanel({
           Next Level
         </button>
       </div>
-      
-      {gameStatus === "completed" && (
-        <div className="mt-3 md:mt-6 px-4 py-2 md:px-8 md:py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-bold text-lg md:text-xl text-center shadow-lg animate-pulse">
-          🎉 Level Complete! All blocks eliminated!
-        </div>
-      )}
     </div>
   );
 }

@@ -1,25 +1,33 @@
 import Block from "../Block";
 
 function GameBoard({ board, onBlockMove }) {
+  // Flatten the 2D board array and add position data
+  const flattenedBoard = board.flatMap((row, rowIndex) =>
+    row.map((cell, colIndex) => ({
+      ...cell,
+      row: rowIndex,
+      col: colIndex,
+    }))
+  );
+
   return (
-    <div className="max-w-fit mx-auto">
-      {board.map((row, rowIndex) => (
-        <div key={rowIndex} className="flex">
-          {row.map((cell, colIndex) => (
-            <div
-              key={cell.id}
-              className="m-[0.75px] board-cell w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 flex items-center justify-center touch-manipulation"
-              data-row={rowIndex}
-              data-col={colIndex}
-            >
-              <Block
-                type={cell.type}
-                row={rowIndex}
-                col={colIndex}
-                onMove={onBlockMove}
-              />
-            </div>
-          ))}
+    <div className="game-grid max-w-fit mx-auto">
+      {flattenedBoard.map((cell) => (
+        <div
+          key={cell.id}
+          className="board-cell touch-manipulation"
+          style={{
+            gridArea: `${cell.row + 1} / ${cell.col + 1}`,
+          }}
+          data-row={cell.row}
+          data-col={cell.col}
+        >
+          <Block
+            type={cell.type}
+            row={cell.row}
+            col={cell.col}
+            onMove={onBlockMove}
+          />
         </div>
       ))}
     </div>
