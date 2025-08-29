@@ -1,7 +1,6 @@
 function ControlPanel({ 
   currentLevel, 
   movableBlockCount, 
-  gameStatus, 
   onRestart, 
   onNextLevel, 
   maxLevel = 59 

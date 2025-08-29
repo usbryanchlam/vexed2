@@ -11,6 +11,7 @@ export const useGameEngine = () => {
   const [gameStatus, setGameStatus] = useState("playing"); // 'playing', 'completed'
   const [animating, setAnimating] = useState(false); // Prevent input during animations
   const [showVictoryOverlay, setShowVictoryOverlay] = useState(false);
+  const [showFinalVictoryOverlay, setShowFinalVictoryOverlay] = useState(false);
   const [autoProgressTimer, setAutoProgressTimer] = useState(AUTO_PROGRESS_SECONDS);
 
   // Check for adjacent matching blocks and eliminate them
@@ -168,6 +169,7 @@ export const useGameEngine = () => {
         setLoading(true);
         setGameStatus("playing");
         setShowVictoryOverlay(false);
+        setShowFinalVictoryOverlay(false);
         setAutoProgressTimer(AUTO_PROGRESS_SECONDS);
         const response = await fetch(`/assets/level.${levelNumber}`);
         const levelData = await response.text();
@@ -313,25 +315,32 @@ export const useGameEngine = () => {
       // Check for victory condition
       if (newMovableCount === 0) {
         setGameStatus("completed");
-        setShowVictoryOverlay(true);
-        setAutoProgressTimer(AUTO_PROGRESS_SECONDS);
-        console.log("🎉 Level completed!");
+        
+        // Check if this is the final level
+        if (currentLevel === 59) {
+          setShowFinalVictoryOverlay(true);
+          console.log("🏆 Game completed! All 59 levels finished!");
+        } else {
+          setShowVictoryOverlay(true);
+          setAutoProgressTimer(AUTO_PROGRESS_SECONDS);
+          console.log("🎉 Level completed!");
 
-        // Start auto-progress timer
-        let timeLeft = AUTO_PROGRESS_SECONDS;
-        const timer = setInterval(() => {
-          timeLeft--;
-          setAutoProgressTimer(timeLeft);
+          // Start auto-progress timer
+          let timeLeft = AUTO_PROGRESS_SECONDS;
+          const timer = setInterval(() => {
+            timeLeft--;
+            setAutoProgressTimer(timeLeft);
 
-          if (timeLeft <= 0) {
-            clearInterval(timer);
-            setShowVictoryOverlay(false);
-            setAutoProgressTimer(AUTO_PROGRESS_SECONDS);
-            if (currentLevel < 59) {
-              setCurrentLevel(currentLevel + 1);
+            if (timeLeft <= 0) {
+              clearInterval(timer);
+              setShowVictoryOverlay(false);
+              setAutoProgressTimer(AUTO_PROGRESS_SECONDS);
+              if (currentLevel < 59) {
+                setCurrentLevel(currentLevel + 1);
+              }
             }
-          }
-        }, 1000);
+          }, 1000);
+        }
       }
 
       return true;
@@ -369,6 +378,13 @@ export const useGameEngine = () => {
     }
   }, [currentLevel]);
 
+  const handlePlayAgain = useCallback(() => {
+    setShowFinalVictoryOverlay(false);
+    setShowVictoryOverlay(false);
+    setGameStatus("playing");
+    setCurrentLevel(1);
+  }, []);
+
   return {
     // State
     board,
@@ -378,6 +394,7 @@ export const useGameEngine = () => {
     gameStatus,
     animating,
     showVictoryOverlay,
+    showFinalVictoryOverlay,
     autoProgressTimer,
 
     // Actions
@@ -385,5 +402,6 @@ export const useGameEngine = () => {
     handleRestart,
     handleNextLevel,
     handleCloseVictoryOverlay,
+    handlePlayAgain,
   };
 };

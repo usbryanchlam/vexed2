@@ -199,3 +199,105 @@
 }
 
 /* Victory message now uses Tailwind classes */
+
+/* Final Victory Overlay Animations */
+.final-victory-overlay {
+  animation: finalVictoryFadeIn 0.5s ease-out forwards;
+}
+
+.final-victory-content {
+  animation: finalVictorySlideUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.play-again-btn {
+  animation: playAgainPulse 2s ease-in-out infinite;
+}
+
+/* Confetti animations */
+.confetti {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: white;
+  opacity: 0.8;
+  border-radius: 50%;
+  animation: confettiFall 3s linear infinite;
+}
+
+.confetti-1 {
+  left: 10%;
+  animation-delay: 0s;
+  background: #fbbf24;
+}
+
+.confetti-2 {
+  left: 20%;
+  animation-delay: 0.5s;
+  background: #34d399;
+}
+
+.confetti-3 {
+  left: 30%;
+  animation-delay: 1s;
+  background: #60a5fa;
+}
+
+.confetti-4 {
+  left: 70%;
+  animation-delay: 1.5s;
+  background: #f472b6;
+}
+
+.confetti-5 {
+  left: 80%;
+  animation-delay: 2s;
+  background: #a78bfa;
+}
+
+.confetti-6 {
+  left: 90%;
+  animation-delay: 2.5s;
+  background: #fb7185;
+}
+
+@keyframes finalVictoryFadeIn {
+  0% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    backdrop-filter: blur(4px);
+  }
+}
+
+@keyframes finalVictorySlideUp {
+  0% {
+    transform: translateY(50px) scale(0.7);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes playAgainPulse {
+  0%, 100% {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+  50% {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 20px rgba(147, 51, 234, 0.3);
+  }
+}
+
+@keyframes confettiFall {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}

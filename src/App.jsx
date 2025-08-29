@@ -3,6 +3,7 @@ import ControlPanel from "./components/ControlPanel";
 import GameBoard from "./components/GameBoard";
 import LoadingScreen from "./components/LoadingScreen";
 import VictoryOverlay from "./components/VictoryOverlay";
+import FinalVictoryOverlay from "./components/FinalVictoryOverlay";
 import "./App.css";
 
 function App() {
@@ -13,11 +14,13 @@ function App() {
     loading,
     gameStatus,
     showVictoryOverlay,
+    showFinalVictoryOverlay,
     autoProgressTimer,
     handleBlockMove,
     handleRestart,
     handleNextLevel,
     handleCloseVictoryOverlay,
+    handlePlayAgain,
   } = useGameEngine();
 
   if (loading) {
@@ -36,7 +39,6 @@ function App() {
         <ControlPanel
           currentLevel={currentLevel}
           movableBlockCount={movableBlockCount}
-          gameStatus={gameStatus}
           onRestart={handleRestart}
           onNextLevel={handleNextLevel}
         />
@@ -47,6 +49,12 @@ function App() {
             autoProgressTimer={autoProgressTimer}
             totalDuration={AUTO_PROGRESS_SECONDS}
             onClose={handleCloseVictoryOverlay}
+          />
+        )}
+        
+        {showFinalVictoryOverlay && (
+          <FinalVictoryOverlay
+            onPlayAgain={handlePlayAgain}
           />
         )}
       </div>
