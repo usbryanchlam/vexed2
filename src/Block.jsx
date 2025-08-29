@@ -17,9 +17,9 @@ function Block({ type, row, col, onMove, eliminating = false, highlighting = fal
   useEffect(() => {
     if (!isDragging) return
 
-    const handleMouseUp = (e) => {
-      // Find the target cell by looking at the element under the mouse
-      const targetElement = document.elementFromPoint(e.clientX, e.clientY)
+    const handleEnd = (clientX, clientY) => {
+      // Find the target cell by looking at the element under the pointer
+      const targetElement = document.elementFromPoint(clientX, clientY)
       const targetCell = targetElement?.closest('.board-cell')
       
       if (targetCell) {
@@ -31,17 +31,30 @@ function Block({ type, row, col, onMove, eliminating = false, highlighting = fal
           if (onMove) {
             onMove(row, col, targetRow, targetCol)
           }
-        } else if (targetRow !== row || targetCol !== col) {
-          // Invalid move: can only move to adjacent horizontal positions
         }
       }
       
       setIsDragging(false)
     }
 
+    const handleMouseUp = (e) => {
+      handleEnd(e.clientX, e.clientY)
+    }
+
+    const handleTouchEnd = (e) => {
+      e.preventDefault()
+      if (e.changedTouches.length > 0) {
+        const touch = e.changedTouches[0]
+        handleEnd(touch.clientX, touch.clientY)
+      }
+    }
+
     document.addEventListener('mouseup', handleMouseUp)
+    document.addEventListener('touchend', handleTouchEnd)
+    
     return () => {
       document.removeEventListener('mouseup', handleMouseUp)
+      document.removeEventListener('touchend', handleTouchEnd)
     }
   }, [isDragging, row, col, onMove])
 
@@ -63,10 +76,18 @@ function Block({ type, row, col, onMove, eliminating = false, highlighting = fal
     return blockAssets[blockType]
   }
 
-  const handleMouseDown = (e) => {
+  const handleStart = (e) => {
     if (type === BLOCK_TYPES.IMMOVABLE) return // Immovable blocks can't be dragged
     setIsDragging(true)
     e.preventDefault()
+  }
+
+  const handleTouchStart = (e) => {
+    handleStart(e)
+  }
+
+  const handleMouseDown = (e) => {
+    handleStart(e)
   }
 
   const handleClick = () => {
@@ -78,7 +99,8 @@ function Block({ type, row, col, onMove, eliminating = false, highlighting = fal
   return (
     <div 
       className={`block ${isDragging ? 'dragging' : ''} ${eliminating ? 'eliminating' : ''} ${highlighting ? 'highlighting' : ''}`}
-      onMouseDown={eliminating || highlighting ? undefined : handleMouseDown} // Prevent interaction during animations
+      onMouseDown={eliminating || highlighting ? undefined : handleMouseDown}
+      onTouchStart={eliminating || highlighting ? undefined : handleTouchStart} // Touch support for mobile
       onClick={eliminating || highlighting ? undefined : handleClick}
       data-type={type}
       data-row={row}
@@ -92,7 +114,8 @@ function Block({ type, row, col, onMove, eliminating = false, highlighting = fal
           width: '100%',
           height: '100%',
           objectFit: 'contain',
-          pointerEvents: 'none'
+          pointerEvents: 'none',
+          touchAction: 'none' // Prevent scrolling when dragging on mobile
         }}
         draggable={false}
       />
