@@ -1,0 +1,55 @@
+function ControlPanel({ 
+  currentLevel, 
+  movableBlockCount, 
+  gameStatus, 
+  onRestart, 
+  onNextLevel, 
+  maxLevel = 59 
+}) {
+  return (
+    <div className="text-center space-y-2 md:space-y-4">
+      <div className="flex gap-4 md:gap-8 justify-center mb-2 md:mb-4 flex-wrap">
+        <span className="font-medium px-3 py-1 md:px-4 md:py-2 bg-slate-200 rounded-lg text-slate-700 text-sm md:text-base">
+          Level: {currentLevel}
+        </span>
+        <span className="font-medium px-3 py-1 md:px-4 md:py-2 bg-slate-200 rounded-lg text-slate-700 text-sm md:text-base">
+          Blocks: {movableBlockCount}
+        </span>
+      </div>
+      
+      <div className="flex gap-3 md:gap-4 justify-center flex-wrap">
+        <button
+          onClick={onRestart}
+          className="px-4 py-2 md:px-6 md:py-3 !bg-blue-600 hover:!bg-blue-700 active:!bg-blue-800 !text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 text-sm md:text-base !border-0 min-h-[40px] md:min-h-[48px]"
+          style={{
+            backgroundColor: "#2563eb",
+            color: "white",
+            border: "none",
+          }}
+        >
+          Restart
+        </button>
+        <button
+          onClick={onNextLevel}
+          disabled={currentLevel >= maxLevel}
+          className="px-4 py-2 md:px-6 md:py-3 !bg-green-600 hover:!bg-green-700 active:!bg-green-800 disabled:!bg-gray-400 disabled:cursor-not-allowed !text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 disabled:transform-none text-sm md:text-base !border-0 min-h-[40px] md:min-h-[48px]"
+          style={{
+            backgroundColor: currentLevel >= maxLevel ? "#9ca3af" : "#16a34a",
+            color: "white",
+            border: "none",
+          }}
+        >
+          Next Level
+        </button>
+      </div>
+      
+      {gameStatus === "completed" && (
+        <div className="mt-3 md:mt-6 px-4 py-2 md:px-8 md:py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-bold text-lg md:text-xl text-center shadow-lg animate-pulse">
+          🎉 Level Complete! All blocks eliminated!
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default ControlPanel;

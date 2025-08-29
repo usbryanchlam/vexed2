@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+/* Keep only custom game-specific styles that Tailwind doesn't handle */
+
+.block {
+  width: 2rem; /* w-8 - fill the cell completely */
+  height: 2rem; /* h-8 - fill the cell completely */
+  border-radius: 0; /* no rounding for packed appearance */
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  touch-action: manipulation;
+  position: relative;
+  animation: blockAppear 0.4s ease-out;
+  /* Remove margin that might interfere with drag detection */
+  margin: 0;
+  /* Ensure proper pointer events for drag and drop */
+  pointer-events: auto;
+  /* Ensure block fills the cell for proper drag target detection */
+  display: block;
+}
+
+/* Responsive sizes - fill cells completely for packed appearance */
+@media (min-width: 640px) {
+  .block {
+    width: 2.25rem; /* sm:w-9 - fill cell completely */
+    height: 2.25rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .block {
+    width: 2.5rem; /* md:w-10 - fill cell completely */
+    height: 2.5rem;
+  }
+}
+
+@keyframes blockAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes blockEliminate {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+/* Only apply hover effects on devices that support hover (not touch) */
+@media (hover: hover) and (pointer: fine) {
+  .block:hover {
+    transform: scale(1.1);
+    filter: brightness(1.1);
+  }
+}
+
+/* Touch-friendly active state for mobile */
+.block:active {
+  transform: scale(1.05);
+}
+
+.block.dragging {
+  transform: scale(1.25);
+  opacity: 0.9;
+  z-index: 10;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+}
+
+.block.eliminating {
+  animation: blockEliminate 0.5s ease-in-out forwards;
+}
+
+.block[data-type="9"] {
+  cursor: not-allowed;
+}
+
+/* Immovable blocks (type 9) should not have hover effects */
+@media (hover: hover) and (pointer: fine) {
+  .block[data-type="9"]:hover {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.block[data-type="9"]:active {
+  transform: scale(1);
+}
+
+/* Board cell styling for proper drag and drop detection */
+.board-cell {
+  pointer-events: auto;
+  position: relative;
+}
+
+/* Victory message now uses Tailwind classes */
