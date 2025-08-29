@@ -1,10 +1,11 @@
-import { MAX_LEVEL } from "../constants/gameConstants";
+import { MAX_LEVEL, INITIAL_LEVEL } from "../constants/gameConstants";
 
 function ControlPanel({ 
   currentLevel, 
   movableBlockCount, 
   onRestart, 
-  onNextLevel, 
+  onNextLevel,
+  onPreviousLevel, 
   maxLevel = MAX_LEVEL 
 }) {
   return (
@@ -19,6 +20,18 @@ function ControlPanel({
       </div>
       
       <div className="flex gap-3 md:gap-4 justify-center flex-wrap">
+        <button
+          onClick={onPreviousLevel}
+          disabled={currentLevel <= INITIAL_LEVEL}
+          className="px-4 py-2 md:px-6 md:py-3 !bg-purple-600 hover:!bg-purple-700 active:!bg-purple-800 disabled:!bg-gray-400 disabled:cursor-not-allowed !text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 disabled:transform-none text-sm md:text-base !border-0 min-h-[40px] md:min-h-[48px]"
+          style={{
+            backgroundColor: currentLevel <= INITIAL_LEVEL ? "#9ca3af" : "#9333ea",
+            color: "white",
+            border: "none",
+          }}
+        >
+          Previous Level
+        </button>
         <button
           onClick={onRestart}
           className="px-4 py-2 md:px-6 md:py-3 !bg-blue-600 hover:!bg-blue-700 active:!bg-blue-800 !text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 text-sm md:text-base !border-0 min-h-[40px] md:min-h-[48px]"

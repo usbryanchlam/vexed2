@@ -436,6 +436,12 @@ export const useGameEngine = () => {
     }
   }, [currentLevel]);
 
+  const handlePreviousLevel = useCallback(() => {
+    if (currentLevel > INITIAL_LEVEL) {
+      setCurrentLevel(currentLevel - 1);
+    }
+  }, [currentLevel]);
+
   const handleCloseVictoryOverlay = useCallback(() => {
     setShowVictoryOverlay(false);
     setAutoProgressTimer(AUTO_PROGRESS_SECONDS);
@@ -467,6 +473,7 @@ export const useGameEngine = () => {
     handleBlockMove,
     handleRestart,
     handleNextLevel,
+    handlePreviousLevel,
     handleCloseVictoryOverlay,
     handlePlayAgain,
   };

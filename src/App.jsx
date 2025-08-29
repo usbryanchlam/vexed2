@@ -19,6 +19,7 @@ function App() {
     handleBlockMove,
     handleRestart,
     handleNextLevel,
+    handlePreviousLevel,
     handleCloseVictoryOverlay,
     handlePlayAgain,
   } = useGameEngine();
@@ -30,8 +31,12 @@ function App() {
   return (
     <div className="fixed top-0 left-0 w-screen h-screen flex items-center justify-center">
       <div className="flex flex-col items-center gap-4 md:gap-8 p-2 md:p-4 min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-        <h1 className="text-2xl md:text-4xl font-bold text-slate-800 mb-3 md:mb-6">
-          Vexed Puzzle Game
+        <h1 className="text-2xl md:text-4xl font-bold mb-3 md:mb-6">
+          <span className="text-red-500">V</span>
+          <span className="text-orange-500">e</span>
+          <span className="text-yellow-500">x</span>
+          <span className="text-green-500">e</span>
+          <span className="text-blue-500">d</span>
         </h1>
 
         <GameBoard board={board} onBlockMove={handleBlockMove} />
@@ -41,6 +46,7 @@ function App() {
           movableBlockCount={movableBlockCount}
           onRestart={handleRestart}
           onNextLevel={handleNextLevel}
+          onPreviousLevel={handlePreviousLevel}
         />
         
         {showVictoryOverlay && (
