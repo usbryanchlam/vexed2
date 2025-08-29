@@ -103,6 +103,7 @@ export const useGameEngine = () => {
     let newBoard = eliminationResult.newBoard;
 
     if (eliminationResult.eliminatedCount > 0) {
+      setAnimating(true);
       // Phase 1: Highlight connected blocks
       const highlightBoard = currentBoard.map((row) => [...row]);
       eliminationResult.toEliminate.forEach((key) => {
@@ -155,6 +156,7 @@ export const useGameEngine = () => {
       });
       
       setBoard(newBoard);
+      setAnimating(false);
     }
 
     return { 
