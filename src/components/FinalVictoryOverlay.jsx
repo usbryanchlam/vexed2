@@ -1,3 +1,5 @@
+import { MAX_LEVEL, INITIAL_LEVEL } from "../constants/gameConstants";
+
 function FinalVictoryOverlay({ onPlayAgain }) {
   return (
     <div className="final-victory-overlay fixed top-0 left-0 w-screen h-screen flex items-center justify-center z-50">
@@ -25,7 +27,7 @@ function FinalVictoryOverlay({ onPlayAgain }) {
         </h1>
         
         <h2 className="text-xl md:text-2xl font-semibold mb-6 text-pink-100 relative z-10">
-          You've completed all 59 levels!
+          You've completed all {MAX_LEVEL} levels!
         </h2>
         
         <p className="text-lg md:text-xl mb-8 text-pink-50 leading-relaxed relative z-10">
@@ -42,7 +44,7 @@ function FinalVictoryOverlay({ onPlayAgain }) {
             🎯 Puzzle Master
           </div>
           <div className="text-pink-100 text-sm">
-            Completed all 59 levels
+            Completed all {MAX_LEVEL} levels
           </div>
         </div>
         
@@ -55,7 +57,7 @@ function FinalVictoryOverlay({ onPlayAgain }) {
         </button>
         
         <p className="text-pink-100 text-sm mt-4 relative z-10">
-          Start from Level 1
+          Start from Level {INITIAL_LEVEL}
         </p>
       </div>
     </div>

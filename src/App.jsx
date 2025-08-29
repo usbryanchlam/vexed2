@@ -1,4 +1,5 @@
-import { useGameEngine, AUTO_PROGRESS_SECONDS } from "./hooks/useGameEngine";
+import { useGameEngine } from "./hooks/useGameEngine";
+import { AUTO_PROGRESS_SECONDS } from "./constants/gameConstants";
 import ControlPanel from "./components/ControlPanel";
 import GameBoard from "./components/GameBoard";
 import LoadingScreen from "./components/LoadingScreen";
@@ -12,7 +13,6 @@ function App() {
     currentLevel,
     movableBlockCount,
     loading,
-    gameStatus,
     showVictoryOverlay,
     showFinalVictoryOverlay,
     autoProgressTimer,

@@ -1,11 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
-
-// Constants
-export const AUTO_PROGRESS_SECONDS = 5;
+import {
+  BOARD_WIDTH,
+  BOARD_HEIGHT,
+  BLOCK_TYPES,
+  MAX_LEVEL,
+  INITIAL_LEVEL,
+  AUTO_PROGRESS_SECONDS,
+  MIN_BLOCKS_FOR_ELIMINATION,
+  ANIMATION_TIMINGS,
+  DIRECTIONS,
+} from "../constants/gameConstants";
 
 export const useGameEngine = () => {
   const [board, setBoard] = useState([]);
-  const [currentLevel, setCurrentLevel] = useState(1);
+  const [currentLevel, setCurrentLevel] = useState(INITIAL_LEVEL);
   const [movableBlockCount, setMovableBlockCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [gameStatus, setGameStatus] = useState("playing"); // 'playing', 'completed'
@@ -19,16 +27,17 @@ export const useGameEngine = () => {
     const newBoard = currentBoard.map((row) => [...row]);
     let eliminatedCount = 0;
     const toEliminate = new Set();
+    const toHighlight = new Set(); // For chain reaction highlighting
 
     // Function to find all connected blocks of the same type
     const findConnectedBlocks = (row, col, blockType, visited) => {
       const key = `${row}-${col}`;
-      if (visited.has(key) || row < 0 || row >= 8 || col < 0 || col >= 10) {
+      if (visited.has(key) || row < 0 || row >= BOARD_HEIGHT || col < 0 || col >= BOARD_WIDTH) {
         return [];
       }
 
       const cell = newBoard[row][col];
-      if (cell.type !== blockType || cell.type === 0 || cell.type === 9) {
+      if (cell.type !== blockType || cell.type === BLOCK_TYPES.EMPTY || cell.type === BLOCK_TYPES.IMMOVABLE) {
         return [];
       }
 
@@ -36,12 +45,7 @@ export const useGameEngine = () => {
       const connected = [{ row, col }];
 
       // Check all 4 directions (up, down, left, right)
-      const directions = [
-        [-1, 0],
-        [1, 0],
-        [0, -1],
-        [0, 1],
-      ];
+      const directions = DIRECTIONS;
 
       for (const [dr, dc] of directions) {
         const newRow = row + dr;
@@ -56,12 +60,12 @@ export const useGameEngine = () => {
 
     // Find all groups of connected blocks
     const visited = new Set();
-    for (let row = 0; row < 8; row++) {
-      for (let col = 0; col < 10; col++) {
+    for (let row = 0; row < BOARD_HEIGHT; row++) {
+      for (let col = 0; col < BOARD_WIDTH; col++) {
         const cell = newBoard[row][col];
         const key = `${row}-${col}`;
 
-        if (!visited.has(key) && cell.type >= 1 && cell.type <= 8) {
+        if (!visited.has(key) && cell.type >= BLOCK_TYPES.MOVABLE_MIN && cell.type <= BLOCK_TYPES.MOVABLE_MAX) {
           const connectedBlocks = findConnectedBlocks(
             row,
             col,
@@ -70,27 +74,94 @@ export const useGameEngine = () => {
           );
 
           // If 2 or more blocks are connected, mark them for elimination
-          if (connectedBlocks.length >= 2) {
+          if (connectedBlocks.length >= MIN_BLOCKS_FOR_ELIMINATION) {
             connectedBlocks.forEach(({ row, col }) => {
               toEliminate.add(`${row}-${col}`);
+              toHighlight.add(`${row}-${col}`);
             });
           }
         }
       }
     }
 
-    // Remove the marked blocks
+    // First, mark blocks for elimination with visual states
     toEliminate.forEach((key) => {
       const [row, col] = key.split("-").map(Number);
       newBoard[row][col] = {
-        type: 0,
-        id: `${row}-${col}`,
+        ...newBoard[row][col],
+        eliminating: true,
       };
       eliminatedCount++;
     });
 
-    return { newBoard, eliminatedCount };
+    return { newBoard, eliminatedCount, toEliminate };
   }, []);
+
+  // Handle visual elimination with animations
+  const eliminateBlocksWithAnimation = useCallback(async (currentBoard) => {
+    const eliminationResult = eliminateBlocks(currentBoard);
+    let newBoard = eliminationResult.newBoard;
+
+    if (eliminationResult.eliminatedCount > 0) {
+      // Phase 1: Highlight connected blocks
+      const highlightBoard = currentBoard.map((row) => [...row]);
+      eliminationResult.toEliminate.forEach((key) => {
+        const [row, col] = key.split("-").map(Number);
+        highlightBoard[row][col] = {
+          ...highlightBoard[row][col],
+          highlighting: true,
+        };
+      });
+      
+      setBoard(highlightBoard);
+      await new Promise((resolve) => setTimeout(resolve, ANIMATION_TIMINGS.ELIMINATION_HIGHLIGHT)); // Highlight duration
+      
+      // Phase 2: Staggered elimination animation
+      const eliminationOrder = Array.from(eliminationResult.toEliminate);
+      
+      // Sort blocks by position for cascade effect (left to right, top to bottom)
+      eliminationOrder.sort((a, b) => {
+        const [aRow, aCol] = a.split("-").map(Number);
+        const [bRow, bCol] = b.split("-").map(Number);
+        if (aRow === bRow) return aCol - bCol; // Same row: left to right
+        return aRow - bRow; // Different row: top to bottom
+      });
+      
+      // Start elimination animations with staggered timing
+      const staggeredBoard = highlightBoard.map((row) => [...row]);
+      eliminationOrder.forEach((key, index) => {
+        const [row, col] = key.split("-").map(Number);
+        staggeredBoard[row][col] = {
+          ...staggeredBoard[row][col],
+          highlighting: false,
+          eliminating: true,
+          eliminationDelay: index * ANIMATION_TIMINGS.ELIMINATION_STAGGER, // Stagger between blocks
+        };
+      });
+      
+      setBoard(staggeredBoard);
+      
+      // Wait for all eliminations to complete (base duration + stagger for last block)
+      const totalDuration = ANIMATION_TIMINGS.ELIMINATION_DURATION + (eliminationOrder.length - 1) * ANIMATION_TIMINGS.ELIMINATION_STAGGER;
+      await new Promise((resolve) => setTimeout(resolve, totalDuration));
+      
+      // Phase 3: Actually remove the blocks
+      eliminationResult.toEliminate.forEach((key) => {
+        const [row, col] = key.split("-").map(Number);
+        newBoard[row][col] = {
+          type: 0,
+          id: `${row}-${col}`,
+        };
+      });
+      
+      setBoard(newBoard);
+    }
+
+    return { 
+      newBoard, 
+      eliminatedCount: eliminationResult.eliminatedCount 
+    };
+  }, [eliminateBlocks]);
 
   // Apply gravity to make blocks fall one step at a time
   const applyGravity = useCallback((currentBoard) => {
@@ -98,17 +169,17 @@ export const useGameEngine = () => {
     let hasChanges = false;
 
     // Check each column from bottom to top
-    for (let col = 0; col < 10; col++) {
-      for (let row = 6; row >= 0; row--) {
+    for (let col = 0; col < BOARD_WIDTH; col++) {
+      for (let row = BOARD_HEIGHT - 2; row >= 0; row--) {
         // Start from second-to-last row
         const cell = newBoard[row][col];
 
         // If there's a movable block (types 1-8) that's not supported
-        if (cell.type >= 1 && cell.type <= 8) {
+        if (cell.type >= BLOCK_TYPES.MOVABLE_MIN && cell.type <= BLOCK_TYPES.MOVABLE_MAX) {
           // Check if the block can fall one row down
           const nextRow = row + 1;
 
-          if (nextRow < 8 && newBoard[nextRow][col].type === 0) {
+          if (nextRow < BOARD_HEIGHT && newBoard[nextRow][col].type === BLOCK_TYPES.EMPTY) {
             // Move the block down by one row only
             newBoard[nextRow][col] = {
               ...cell,
@@ -117,7 +188,7 @@ export const useGameEngine = () => {
 
             // Clear the original position
             newBoard[row][col] = {
-              type: 0,
+              type: BLOCK_TYPES.EMPTY,
               id: `${row}-${col}`,
             };
 
@@ -146,13 +217,13 @@ export const useGameEngine = () => {
           if (gravityResult.hasChanges) {
             // Update the board state and wait for animation
             setBoard(workingBoard);
-            await new Promise((resolve) => setTimeout(resolve, 400)); // Wait for CSS transition
+            await new Promise((resolve) => setTimeout(resolve, ANIMATION_TIMINGS.GRAVITY_STEP)); // Wait for CSS transition
           } else {
             hasMoreFalling = false;
           }
         }
-      } catch (error) {
-        console.error("Error in gravity animation:", error);
+      } catch {
+        // Handle gravity animation errors silently
       } finally {
         setAnimating(false);
       }
@@ -179,11 +250,11 @@ export const useGameEngine = () => {
         const newBoard = [];
         let movableCount = 0;
 
-        for (let row = 0; row < 8; row++) {
+        for (let row = 0; row < BOARD_HEIGHT; row++) {
           const boardRow = [];
-          const line = lines[row] || "0000000000"; // fallback for missing rows
+          const line = lines[row] || "0".repeat(BOARD_WIDTH); // fallback for missing rows
 
-          for (let col = 0; col < 10; col++) {
+          for (let col = 0; col < BOARD_WIDTH; col++) {
             const type = parseInt(line[col] || "0");
             boardRow.push({
               type: type,
@@ -191,7 +262,7 @@ export const useGameEngine = () => {
             });
 
             // Count movable blocks (types 1-8)
-            if (type >= 1 && type <= 8) {
+            if (type >= BLOCK_TYPES.MOVABLE_MIN && type <= BLOCK_TYPES.MOVABLE_MAX) {
               movableCount++;
             }
           }
@@ -206,15 +277,21 @@ export const useGameEngine = () => {
         while (hasPhysicsChanges) {
           hasPhysicsChanges = false;
 
-          // Apply elimination first
+          // Apply elimination first (instant during level load)
           const eliminationResult = eliminateBlocks(finalBoard);
           finalBoard = eliminationResult.newBoard;
 
           if (eliminationResult.eliminatedCount > 0) {
+            // Instantly remove blocks during level load (no animation)
+            eliminationResult.toEliminate.forEach((key) => {
+              const [row, col] = key.split("-").map(Number);
+              finalBoard[row][col] = {
+                type: BLOCK_TYPES.EMPTY,
+                id: `${row}-${col}`,
+              };
+            });
+            
             totalEliminated += eliminationResult.eliminatedCount;
-            console.log(
-              `${eliminationResult.eliminatedCount} blocks eliminated on level load`
-            );
             hasPhysicsChanges = true;
           }
 
@@ -224,7 +301,6 @@ export const useGameEngine = () => {
             gravityResult = applyGravity(finalBoard);
             finalBoard = gravityResult.newBoard;
             if (gravityResult.hasChanges) {
-              console.log("Gravity applied on level load");
               hasPhysicsChanges = true;
             }
           } while (gravityResult.hasChanges);
@@ -233,8 +309,8 @@ export const useGameEngine = () => {
         setBoard(finalBoard);
         setMovableBlockCount(movableCount - totalEliminated);
         setLoading(false);
-      } catch (error) {
-        console.error("Error loading level:", error);
+      } catch {
+        // Handle level loading errors silently
         setLoading(false);
       }
     },
@@ -246,19 +322,13 @@ export const useGameEngine = () => {
     async (fromRow, fromCol, toRow, toCol) => {
       // Prevent moves during animations
       if (animating) {
-        console.log("Cannot move during animation");
         return false;
       }
 
       // Check if the target position is empty
-      if (board[toRow][toCol].type !== 0) {
-        console.log("Target position is not empty");
+      if (board[toRow][toCol].type !== BLOCK_TYPES.EMPTY) {
         return false;
       }
-
-      console.log(
-        `Moving block from (${fromRow}, ${fromCol}) to (${toRow}, ${toCol})`
-      );
 
       // Create new board with the moved block
       let newBoard = board.map((row) => [...row]);
@@ -272,7 +342,7 @@ export const useGameEngine = () => {
 
       // Clear the original position
       newBoard[fromRow][fromCol] = {
-        type: 0,
+        type: BLOCK_TYPES.EMPTY,
         id: `${fromRow}-${fromCol}`,
       };
 
@@ -280,7 +350,7 @@ export const useGameEngine = () => {
       setBoard(newBoard);
 
       // Wait for horizontal animation to be visible before starting gravity
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, ANIMATION_TIMINGS.HORIZONTAL_MOVE_DELAY));
 
       // Apply animated gravity and elimination in a loop until stable
       let totalEliminated = 0;
@@ -292,17 +362,13 @@ export const useGameEngine = () => {
         // Apply animated gravity first
         newBoard = await applyGravityWithAnimation(newBoard);
 
-        // Then check for block elimination
-        const eliminationResult = eliminateBlocks(newBoard);
+        // Then check for block elimination with animation
+        const eliminationResult = await eliminateBlocksWithAnimation(newBoard);
         newBoard = eliminationResult.newBoard;
 
         if (eliminationResult.eliminatedCount > 0) {
           totalEliminated += eliminationResult.eliminatedCount;
-          console.log(`${eliminationResult.eliminatedCount} blocks eliminated`);
-          setBoard(newBoard);
           hasPhysicsChanges = true;
-          // Brief pause to show elimination
-          await new Promise((resolve) => setTimeout(resolve, 200));
         }
       }
 
@@ -317,13 +383,11 @@ export const useGameEngine = () => {
         setGameStatus("completed");
         
         // Check if this is the final level
-        if (currentLevel === 59) {
+        if (currentLevel === MAX_LEVEL) {
           setShowFinalVictoryOverlay(true);
-          console.log("🏆 Game completed! All 59 levels finished!");
         } else {
           setShowVictoryOverlay(true);
           setAutoProgressTimer(AUTO_PROGRESS_SECONDS);
-          console.log("🎉 Level completed!");
 
           // Start auto-progress timer
           let timeLeft = AUTO_PROGRESS_SECONDS;
@@ -335,7 +399,7 @@ export const useGameEngine = () => {
               clearInterval(timer);
               setShowVictoryOverlay(false);
               setAutoProgressTimer(AUTO_PROGRESS_SECONDS);
-              if (currentLevel < 59) {
+              if (currentLevel < MAX_LEVEL) {
                 setCurrentLevel(currentLevel + 1);
               }
             }
@@ -349,7 +413,7 @@ export const useGameEngine = () => {
       board,
       movableBlockCount,
       applyGravityWithAnimation,
-      eliminateBlocks,
+      eliminateBlocksWithAnimation,
       animating,
       currentLevel,
     ]
@@ -365,7 +429,7 @@ export const useGameEngine = () => {
   }, [currentLevel, loadLevel]);
 
   const handleNextLevel = useCallback(() => {
-    if (currentLevel < 59) {
+    if (currentLevel < MAX_LEVEL) {
       setCurrentLevel(currentLevel + 1);
     }
   }, [currentLevel]);
@@ -373,7 +437,7 @@ export const useGameEngine = () => {
   const handleCloseVictoryOverlay = useCallback(() => {
     setShowVictoryOverlay(false);
     setAutoProgressTimer(AUTO_PROGRESS_SECONDS);
-    if (currentLevel < 59) {
+    if (currentLevel < MAX_LEVEL) {
       setCurrentLevel(currentLevel + 1);
     }
   }, [currentLevel]);
@@ -382,7 +446,7 @@ export const useGameEngine = () => {
     setShowFinalVictoryOverlay(false);
     setShowVictoryOverlay(false);
     setGameStatus("playing");
-    setCurrentLevel(1);
+    setCurrentLevel(INITIAL_LEVEL);
   }, []);
 
   return {

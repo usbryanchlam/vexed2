@@ -1,9 +1,11 @@
+import { MAX_LEVEL } from "../constants/gameConstants";
+
 function ControlPanel({ 
   currentLevel, 
   movableBlockCount, 
   onRestart, 
   onNextLevel, 
-  maxLevel = 59 
+  maxLevel = MAX_LEVEL 
 }) {
   return (
     <div className="text-center space-y-2 md:space-y-4">

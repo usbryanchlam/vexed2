@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { BLOCK_TYPES, ADJACENT_DISTANCE } from './constants/gameConstants'
 import block1 from './assets/block1.svg'
 import block2 from './assets/block2.svg'
 import block3 from './assets/block3.svg'
@@ -9,7 +10,7 @@ import block7 from './assets/block7.svg'
 import block8 from './assets/block8.svg'
 import block9 from './assets/block9.svg'
 
-function Block({ type, row, col, onMove }) {
+function Block({ type, row, col, onMove, eliminating = false, highlighting = false, eliminationDelay = 0 }) {
   const [isDragging, setIsDragging] = useState(false)
 
   // Always call hooks, even for empty cells
@@ -26,12 +27,12 @@ function Block({ type, row, col, onMove }) {
         const targetCol = parseInt(targetCell.dataset.col)
         
         // Only move if it's to an adjacent horizontal position
-        if (targetRow === row && Math.abs(targetCol - col) === 1) {
+        if (targetRow === row && Math.abs(targetCol - col) === ADJACENT_DISTANCE) {
           if (onMove) {
             onMove(row, col, targetRow, targetCol)
           }
         } else if (targetRow !== row || targetCol !== col) {
-          console.log(`Invalid move: can only move to adjacent horizontal positions`)
+          // Invalid move: can only move to adjacent horizontal positions
         }
       }
       
@@ -45,7 +46,7 @@ function Block({ type, row, col, onMove }) {
   }, [isDragging, row, col, onMove])
 
   // Return early after hooks
-  if (type === 0) return null // Empty cell
+  if (type === BLOCK_TYPES.EMPTY) return null // Empty cell
 
   const getBlockImage = (blockType) => {
     const blockAssets = {
@@ -63,25 +64,26 @@ function Block({ type, row, col, onMove }) {
   }
 
   const handleMouseDown = (e) => {
-    if (type === 9) return // Immovable blocks can't be dragged
+    if (type === BLOCK_TYPES.IMMOVABLE) return // Immovable blocks can't be dragged
     setIsDragging(true)
     e.preventDefault()
   }
 
   const handleClick = () => {
-    if (type !== 9) {
-      console.log(`Clicked block type ${type} at position (${row}, ${col})`)
+    if (type !== BLOCK_TYPES.IMMOVABLE) {
+      // Block click handler (for debugging)
     }
   }
 
   return (
     <div 
-      className={`block ${isDragging ? 'dragging' : ''}`}
-      onMouseDown={handleMouseDown}
-      onClick={handleClick}
+      className={`block ${isDragging ? 'dragging' : ''} ${eliminating ? 'eliminating' : ''} ${highlighting ? 'highlighting' : ''}`}
+      onMouseDown={eliminating || highlighting ? undefined : handleMouseDown} // Prevent interaction during animations
+      onClick={eliminating || highlighting ? undefined : handleClick}
       data-type={type}
       data-row={row}
       data-col={col}
+      data-elimination-delay={eliminating ? eliminationDelay : undefined}
     >
       <img 
         src={getBlockImage(type)}

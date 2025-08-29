@@ -27,6 +27,9 @@ function GameBoard({ board, onBlockMove }) {
             row={cell.row}
             col={cell.col}
             onMove={onBlockMove}
+            eliminating={cell.eliminating}
+            highlighting={cell.highlighting}
+            eliminationDelay={cell.eliminationDelay}
           />
         </div>
       ))}
